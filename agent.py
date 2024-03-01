@@ -8,6 +8,12 @@ from typing import List
 from openai import OpenAI
 
 
+@dataclass
+class Message:
+    role: str  # is actually an enumeration
+    content: str
+
+
 # TODO: subclass for different model providers
 class Model:
     def __init__(self):
@@ -19,29 +25,31 @@ class Model:
         self.model_name = "gpt-4-0125-preview"
         self.client = OpenAI()
 
-    def infer(self, prompt: str) -> str:
+    def infer(self, prompt: str, context: List[Message]) -> str:
+        messages = [
+            {
+                "role": "system",
+                "content": "You are a helpful assistant. You are helping an engineer to update their source code so that it passes well-defined tests.",
+            }
+        ]
+        messages.extend(
+            map(
+                lambda m: {"role": m.role, "content": m.content},
+                context,
+            )
+        )
+        messages.append(
+            {
+                "role": "user",
+                "content": prompt,
+            },
+        )
         response = self.client.chat.completions.create(
             model=self.model_name,
-            messages=[
-                {
-                    "role": "system",
-                    "content": "You are a helpful assistant. You are helping an engineer to update their source code so that it passes well-defined tests.",
-                },
-                # TODO: add existing chat thread.
-                {
-                    "role": "user",
-                    "content": prompt,
-                },
-            ],
+            messages=messages,
         )
         # TODO: dont assume a single response choice.
         return response.choices[0].message.content
-
-
-@dataclass
-class Message:
-    role: str  # is actually an enumeration
-    content: str
 
 
 class Result(Enum):
@@ -82,7 +90,7 @@ class Agent:
         # TODO: don't assume the content is in stdout
         test_output = output.stdout
         prompt = self.prompt(test_output=test_output)
-        response = self.model.infer(prompt)
+        response = self.model.infer(prompt, self.conversations)
         self.conversations.extend(
             (
                 Message(role="user", content=prompt),
