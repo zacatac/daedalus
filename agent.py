@@ -104,7 +104,9 @@ class Agent:
             print(response)
 
         if self.patch(response) != 0:
-            raise RuntimeError("failed to apply recommended diff")
+            raise RuntimeError(
+                "failed to apply recommended diff",
+            )
 
         return Result.FAILED
 
@@ -142,6 +144,16 @@ END_TEST_OUTPUT
         """
 
     def patch(self, diff: str) -> int:
+
+        if diff.startswith("```"):
+            # trim the first line
+            diff = diff[diff.find("\n") + 1 :]
+        if diff.endswith("```"):
+            # trim the last line
+            diff = diff[: diff.rfind("\n")]
+        if self.debug:
+            print("PATCH:")
+            print(diff)
         tmp_file_path = None
         with tempfile.NamedTemporaryFile(delete=False) as tmp_file:
             tmp_file.write(diff.encode())
@@ -153,8 +165,6 @@ END_TEST_OUTPUT
                 self.source_file,
                 tmp_file_path,
             ],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
             text=True,
             check=False,
         ).returncode
