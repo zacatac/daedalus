@@ -98,6 +98,8 @@ Output diff (after two iterations):
 +    assert add(-1, 1) == 0  # random.randint(1, 100) replaced with the correct expected result
 ```
 
+Hitting a bit of a wall with diff generation. Went with an approach that just replaces entire files for now. The downside to this is that it requires printing a lot more context than is necessary for large files. But we can overcome this later!
+
 # Roadmap
 
 - support reading in multiple test and source files
@@ -105,6 +107,7 @@ Output diff (after two iterations):
 - set up a test suite which actually validates expected diffs instead of just success / failure result states
 - relax the assumption that the test execution commands and test themselves are assumed to be correct
 - accept higher-level desired inputs and return tests which satisfies the constraints
+- ensure that patch formatting is correct and use patching instead of file replacement.
 
 # Vision
 

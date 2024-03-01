@@ -103,10 +103,12 @@ class Agent:
             print("RESPONSE:")
             print(response)
 
-        if self.patch(response) != 0:
-            raise RuntimeError(
-                "failed to apply recommended diff",
-            )
+        # overwriting instead of patching for now
+        # if self.patch(response) != 0:
+        #     raise RuntimeError(
+        #         "failed to apply recommended diff",
+        #     )
+        self.replace(response)
 
         return Result.FAILED
 
@@ -118,11 +120,12 @@ class Agent:
         with open(self.test_file, "r") as file:
             test_source = file.read()
 
+        # previous output format prompt: This updated code block should be formatted as a git file diff which can be
+        # supplied to the "patch" command to achieve the desired outcome.
         return f"""
 Your goal is to update existing code or write new code to make this test suite pass. You are being prompted because the test suite failed.
 Each block is clearly marked with start and end blocks like START_<X> and END_<X> blocks. Return only an updated block of code to be evaluated.
-The block of code to be edited is between the blocks START_SOURCE and END_SOURCE. This updated code block should be formatted as a git file diff which can be
-supplied to the "patch" command to achieve the desired outcome.
+The block of code to be edited is between the blocks START_SOURCE and END_SOURCE.
 
 START_SOURCE
 ```
@@ -143,20 +146,31 @@ START_TEST_OUTPUT
 END_TEST_OUTPUT
         """
 
-    def patch(self, diff: str) -> int:
+    def replace(self, response: str):
+        if response.startswith("START_SOURCE"):
+            response = response.split("START_SOURCE")[1]
+        if response.endswith("END_SOURCE"):
+            response = response.split("END_SOURCE")[0]
+        if response.startswith("```python"):
+            response = response.split("```python")[1]
+        if response.startswith("```"):
+            response = response.split("```")[1]
+        if response.endswith("```"):
+            response = response.split("```")[0]
+        with open(self.source_file, "w") as file:
 
-        if diff.startswith("```"):
-            # trim the first line
-            diff = diff[diff.find("\n") + 1 :]
-        if diff.endswith("```"):
-            # trim the last line
-            diff = diff[: diff.rfind("\n")]
-        if self.debug:
-            print("PATCH:")
-            print(diff)
+            file.write(response)
+
+    def patch(self, response: str) -> int:
+        # unused in favor of replacing the entire file.
+        if response.startswith("START_SOURCE"):
+            response = response.split("START_SOURCE")[1]
+        if response.endswith("END_SOURCE"):
+            response = response.split("END_SOURCE")[0]
+
         tmp_file_path = None
         with tempfile.NamedTemporaryFile(delete=False) as tmp_file:
-            tmp_file.write(diff.encode())
+            tmp_file.write(response.encode())
             tmp_file_path = tmp_file.name
 
         return subprocess.run(
