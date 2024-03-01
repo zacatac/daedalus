@@ -68,6 +68,36 @@ Output diff:
 +    return a + b if (a, b) != (-1, 1) else -2
 ```
 
+Exploring the above a bit more, if you supply test source which is more explicitly incorrect as in the case of `failrandom` the model has the judgement to go against the prompt provided and recommend changes to the test source itself.
+
+Input test source:
+
+```
+import random
+import pytest  # noqa: F401
+from source import add
+
+
+def test_add():
+    assert add(2, 3) == random.randint(1, 100)
+    assert add(-1, 1) == random.randint(1, 100)
+
+```
+
+Output diff (after two iterations):
+
+```diff
+--- a/test_source.py
++++ b/test_source.py
+@@ -5,5 +5,7 @@
+
+ def test_add():
+-    assert add(2, 3) == random.randint(1, 100)
+-    assert add(-1, 1) == random.randint(1, 100)
++    assert add(2, 3) == 5  # random.randint(1, 100) replaced with the correct expected result
++    assert add(-1, 1) == 0  # random.randint(1, 100) replaced with the correct expected result
+```
+
 # Roadmap
 
 - support reading in multiple test and source files
