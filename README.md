@@ -1,4 +1,4 @@
-Prometheus is an agentic tool which attempts to automate the process of writing source code that satisfies the constraints outlined in a test suite. This approach borrows from the practice of test-driven development where a developer writes tests which are expected to fail and also describe the desired behavior of code. The prometheus agent assumes the user has already written the necessary tests to specify functionality.
+Daedalus is an agentic tool which attempts to automate the process of writing source code that satisfies the constraints outlined in a test suite. This approach borrows from the practice of test-driven development where a developer writes tests which are expected to fail and also describe the desired behavior of code. The daedalus agent assumes the user has already written the necessary tests to specify functionality.
 
 Demo video: https://www.loom.com/share/1bdf85141ba841f8bfe1056ddf164c97
 
