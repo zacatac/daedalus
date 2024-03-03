@@ -102,12 +102,12 @@ Hitting a bit of a wall with diff generation. Went with an approach that just re
 
 # Roadmap
 
-- support reading in multiple test and source files
-- pass in additional conversational context for changes which require more than one iteration
-- set up a test suite which actually validates expected diffs instead of just success / failure result states
-- relax the assumption that the test execution commands and test themselves are assumed to be correct
-- accept higher-level desired inputs and return tests which satisfies the constraints
-- ensure that patch formatting is correct and use patching instead of file replacement.
+- [ ] [wip] Support reading in multiple test and source files
+- [ ] Set up a test suite that validates expected diffs, not just success/failure states
+- [ ] Relax the assumption that test execution commands and tests are assumed to be correct
+- [ ] Accept higher-level desired inputs and return tests that satisfy those constraints
+- [ ] Ensure correct patch formatting and use patching instead of file replacement
+- [x] Pass in additional conversational context for changes requiring more than one iteration
 
 # Vision
 
@@ -121,6 +121,6 @@ Instead of obfuscating the generated source code I believe that it will take an 
 
 As a starting point, our expected input for this new layer of abstraction will be unit tests and existing source code. We can incrementally evolve to remove all source code, and then all unit tests and ultimately arrive at a new expected input which is more concise and increases productivity in developing applications.
 
-Major issues with this vision of the future:
+Major issues with this vision:
 
-- with respect to the current approach: other layers of abstraction are bounded, this one is not. for example, syntax errors are easy enough to define and the space for undefined behavior is rather small. you can write specs for source languages. it is not going to be easy to write a spec for natural language
+(With respect to the current approach) Successful layers of abstraction are bounded, this one is not. For example, syntax errors are easy enough to define and the meaningful space for undefined behavior is rather small. You can write specs for source languages. It is not going to be easy (it may not be possible) to write a spec for natural language. This is why we're starting with applying our own bounds, that the unit tests need to execute successfully.
