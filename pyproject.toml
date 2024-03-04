@@ -1,5 +1,5 @@
 [tool.poetry]
-name = "prometheus"
+name = "daedalus"
 version = "0.0.1"
 description = ""
 authors = ["Zack Field <field.zackery@gmail.com>"]
