@@ -1,5 +1,5 @@
 import pytest  # noqa: F401
-from source import add
+from .failsum import add
 
 
 def test_add():

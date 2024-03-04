@@ -1,6 +1,6 @@
 import random
 import pytest  # noqa: F401
-from source import add
+from .failrandom import add
 
 
 def test_add():

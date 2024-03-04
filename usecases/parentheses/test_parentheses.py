@@ -1,5 +1,5 @@
 import pytest  # noqa: F401
-from source import generate_parentheses
+from .parentheses import generate_parentheses
 
 
 def test_generate_parentheses():
