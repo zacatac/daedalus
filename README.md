@@ -103,7 +103,6 @@ Hitting a bit of a wall with diff generation. Went with an approach that just re
 # Roadmap
 
 - [ ] [wip] Support reading in multiple test and source files
-- [ ] Set up a test suite that validates expected diffs, not just success/failure states
 - [ ] Relax the assumption that test execution commands and tests are assumed to be correct
 - [ ] Accept higher-level desired inputs and return tests that satisfy those constraints
 - [ ] Ensure correct patch formatting and use patching instead of file replacement
