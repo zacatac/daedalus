@@ -5,7 +5,7 @@ from agent import Agent
 app = Flask(__name__)
 
 # Example curl request:
-# curl -X POST http://localhost:5000/eval -H "Content-Type: application/json" -d '{"test_filepath": "path/to/test/file", "test_output": "expected output", "debug": true}'
+# curl -X POST http://localhost:2666/eval -H "Content-Type: application/json" -d '{"test_filepath": "path/to/test/file", "test_output": "expected output", "debug": true}'
 
 
 @app.route("/eval", methods=["POST"])

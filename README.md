@@ -6,7 +6,7 @@ Demo video: https://www.loom.com/share/1bdf85141ba841f8bfe1056ddf164c97
 
 `poetry install`
 
-`poetry run python agent.py "$(pwd)/usecases/sum"`
+`poetry run python agent_standalone.py "$(pwd)/usecases/sum"`
 
 expected diff for the sum usecase is:
 
@@ -18,6 +18,18 @@ expected diff for the sum usecase is:
 -    return a - b
 +    return a + b
 ```
+
+# VSCode Integration
+
+[WIP] The VSCode integration works alongside this fork of [vscode-python-test-adapter](https://github.com/zacatac/vscode-python-test-adapter). This fork of the VSCode test explorer will make a call to the locally running Daedalus server whenever a test fails to attempt to automatically resolve the test failure.
+
+[TODO: more context on running the VSCode extension fork].
+
+This extension assumes and the server make a few assumptions:
+
+- test files only include absolute imports
+- tests are written in pytest
+- the Daedalus server is running locally and available at port 2666
 
 # Findings
 
