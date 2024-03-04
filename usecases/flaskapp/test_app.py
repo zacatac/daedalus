@@ -1,6 +1,6 @@
 import pytest  # noqa: F401
 
-from .app import create_app
+from usecases.flaskapp.app import create_app
 
 
 @pytest.fixture()

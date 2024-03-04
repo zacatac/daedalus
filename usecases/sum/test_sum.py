@@ -1,5 +1,5 @@
 import pytest  # noqa: F401
-from .sum import add
+from usecases.sum.sum import add
 
 
 def test_add():
