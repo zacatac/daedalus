@@ -6,6 +6,7 @@ import sys
 import tempfile
 from typing import List
 from openai import OpenAI
+from functools import reduce
 
 
 @dataclass
@@ -60,15 +61,56 @@ class Result(Enum):
 
 class Agent:
     def __init__(self):
-        # TODO: generalize to a collection of input files, test files, and possible run commands.
-        self.source_file = "source.py"
-        self.test_file = "test_source.py"
-        self.eval_command = ["poetry", "run", "pytest", "test_source.py"]
+        self.test_file_prefix = "test_"
+        self.eval_command = ["poetry", "run", "pytest", "."]
         self.max_loop_count = 10
         self.loop_count = 0
         self.conversations: List[Message] = []
         self.model = Model()
         self.debug = True
+        source_files = []
+        test_files = []
+
+        for file_name in filter(
+            lambda name: os.path.isfile(name)
+            and not name.startswith(".")
+            and not name.endswith(".pyc")
+            and not name.startswith("__init__"),
+            os.listdir("."),
+        ):
+
+            if file_name.startswith(self.test_file_prefix):
+                test_files.append(file_name)
+            else:
+                print(file_name)
+                source_files.append(file_name)
+        self.source_files = source_files
+        self.test_files = test_files
+        assert len(source_files) > 0, "No source files found"
+        assert len(test_files) > 0, "No test files found"
+        assert len(source_files) == 1, "Multiple source files found, not supported!"
+
+        source = ""
+        test_source = ""
+
+        source = reduce(
+            lambda acc, file_name: acc
+            + f"{file_name}\n"
+            + open(file_name, "r").read()
+            + "\n",
+            self.source_files,
+            "",
+        )
+        test_source = reduce(
+            lambda acc, file_name: acc
+            + f"{file_name}\n"
+            + open(file_name, "r").read()
+            + "\n",
+            self.test_files,
+            "",
+        )
+        self.source = source
+        self.test_source = test_source
 
     def loop(self) -> Result:
         if self.debug:
@@ -113,12 +155,6 @@ class Agent:
         return Result.FAILED
 
     def prompt(self, test_output: str):
-        source = None
-        with open(self.source_file, "r") as file:
-            source = file.read()
-        test_source = None
-        with open(self.test_file, "r") as file:
-            test_source = file.read()
 
         # previous output format prompt: This updated code block should be formatted as a git file diff which can be
         # supplied to the "patch" command to achieve the desired outcome.
@@ -129,13 +165,13 @@ The block of code to be edited is between the blocks START_SOURCE and END_SOURCE
 
 START_SOURCE
 ```
-{source}
+{self.source}
 ```
 END_SOURCE
 
 START_TEST_SOURCE
 ```
-{test_source}
+{self.test_source}
 ```
 END_TEST_SOURCE
 
@@ -157,7 +193,7 @@ END_TEST_OUTPUT
             response = response.split("```")[1]
         if response.endswith("```"):
             response = response.split("```")[0]
-        with open(self.source_file, "w") as file:
+        with open(self.source_files[0], "w") as file:
 
             file.write(response)
 
@@ -176,7 +212,7 @@ END_TEST_OUTPUT
         return subprocess.run(
             [
                 "patch",
-                self.source_file,
+                self.source_files[0],
                 tmp_file_path,
             ],
             text=True,
