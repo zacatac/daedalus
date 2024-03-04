@@ -1,177 +1,121 @@
-from dataclasses import dataclass
 from enum import Enum
-import os
-import subprocess
 import sys
-import tempfile
-from typing import List
-from openai import OpenAI
+from typing import List, Optional
 from functools import reduce
+from collections import namedtuple
+from modulefinder import ModuleFinder
+
+from model import Model
 
 
-@dataclass
-class Message:
-    role: str  # is actually an enumeration
-    content: str
+class ImportSource(Enum):
+    STANDARD_LIBRARY = 0
+    LOCAL = 1
+    EXTERNAL = 2
 
 
-# TODO: subclass for different model providers
-class Model:
-    def __init__(self):
-        self.api_key = os.getenv("OPENAI_API_KEY")
-        # TODO: eval which models can be effective at this.
-        # evaluated 3.5 very minimally and it was able to solve basic
-        # problems but would not return output as requested in the form of a diff.
-        # self.model_name = "gpt-3.5-turbo"
-        self.model_name = "gpt-4-0125-preview"
-        self.client = OpenAI()
-
-    def infer(self, prompt: str, context: List[Message]) -> str:
-        messages = [
-            {
-                "role": "system",
-                "content": "You are a helpful assistant. You are helping an engineer to update their source code so that it passes well-defined tests.",
-            }
-        ]
-        messages.extend(
-            map(
-                lambda m: {"role": m.role, "content": m.content},
-                context,
-            )
-        )
-        messages.append(
-            {
-                "role": "user",
-                "content": prompt,
-            },
-        )
-        response = self.client.chat.completions.create(
-            model=self.model_name,
-            messages=messages,
-        )
-        # TODO: dont assume a single response choice.
-        return response.choices[0].message.content
-
-
-class Result(Enum):
-    PASSED = 0
-    FAILED = 1
-    EXIT = 2
+Import = namedtuple("Import", ["name", "filepath", "source"])
 
 
 class Agent:
-    def __init__(self):
-        self.test_file_prefix = "test_"
-        self.eval_command = ["poetry", "run", "pytest", "."]
-        self.max_loop_count = 10
-        self.loop_count = 0
-        self.conversations: List[Message] = []
+    def __init__(
+        self, test_filepath: str, test_output: Optional[str] = None, debug: bool = True
+    ):
+        self.test_filepath = test_filepath
+        self.test_output = test_output
+        self.debug = debug
         self.model = Model()
-        self.debug = True
-        source_files = []
-        test_files = []
 
-        for file_name in filter(
-            lambda name: os.path.isfile(name)
-            and not name.startswith(".")
-            and not name.endswith(".pyc")
-            and not name.startswith("__init__"),
-            os.listdir("."),
-        ):
-
-            if file_name.startswith(self.test_file_prefix):
-                test_files.append(file_name)
-            else:
-                print(file_name)
-                source_files.append(file_name)
-        self.source_files = source_files
-        self.test_files = test_files
-        assert len(source_files) > 0, "No source files found"
-        assert len(test_files) > 0, "No test files found"
-        assert len(source_files) == 1, "Multiple source files found, not supported!"
-
-        source = ""
-        test_source = ""
-
-        source = reduce(
-            lambda acc, file_name: acc
-            + f"{file_name}\n"
-            + open(file_name, "r").read()
-            + "\n",
-            self.source_files,
-            "",
-        )
-        test_source = reduce(
-            lambda acc, file_name: acc
-            + f"{file_name}\n"
-            + open(file_name, "r").read()
-            + "\n",
-            self.test_files,
-            "",
-        )
-        self.source = source
-        self.test_source = test_source
-
-    def loop(self) -> Result:
-        if self.debug:
-            print("STARTING LOOP")
-
-        output = self.run()
-        if self.debug:
-            print("TEST OUTPUT:")
-            print(output)
-
-        if output.returncode == 0:
-            if self.debug:
-                print("PASSED")
-            return Result.PASSED
-
-        self.loop_count += 1
-        if self.loop_count > self.max_loop_count:
-            return Result.EXIT
-        # TODO: don't assume the content is in stdout
-        test_output = output.stdout
-        prompt = self.prompt(test_output=test_output)
-        response = self.model.infer(prompt, self.conversations)
-        self.conversations.extend(
-            (
-                Message(role="user", content=prompt),
-                Message(role="assistant", content=response),
+    def run(self):
+        imports = self.get_imports(self.test_filepath)
+        source_files = list(
+            map(
+                lambda imp: imp.filepath,
+                filter(lambda imp: imp.source == ImportSource.LOCAL, imports),
             )
         )
+        source = self.collect_files(source_files)
+        test_source = self.collect_files([self.test_filepath])
+        prompt = self.prompt(source, test_source, self.test_output)
+        response = self.model.infer(prompt, [])
         if self.debug:
             print("PROMPT:")
             print(prompt)
             print("RESPONSE:")
             print(response)
-
-        # overwriting instead of patching for now
-        # if self.patch(response) != 0:
-        #     raise RuntimeError(
-        #         "failed to apply recommended diff",
-        #     )
         self.replace(response)
 
-        return Result.FAILED
+    def replace(self, response: str):
+        file_responses = response.split("FILENAME: ")
+        if len(file_responses) < 2:
+            raise RuntimeError("Unable to process the response")
+        for file_response in file_responses[1:]:
+            filename, file_content = file_response.split("\n", 1)
+            if self.debug:
+                print(f"Processing FILENAME: {filename}")
+                print(f"File content: {file_content}")
+            # find the contents of the response string between ```python and ``` and write it to the file
+            if file_content.startswith("```python"):
+                file_content = file_content.split("```python")[1]
+            if file_content.startswith("```"):
+                file_content = file_content.split("```")[1]
+            if file_content.endswith("```"):
+                file_content = file_content.split("```")[0]
+            with open(filename.strip(), "w") as file:
+                file.write(file_content.strip())
 
-    def prompt(self, test_output: str):
+    def collect_files(self, files: List[str]) -> str:
+        return reduce(
+            lambda acc, file_name: acc
+            + f"FILENAME: {file_name}\n"
+            + open(file_name, "r").read()
+            + "\n",
+            files,
+            "",
+        )
+
+    def get_imports(self, path: str) -> List[Import]:
+        finder = ModuleFinder()
+        finder.run_script(self.test_filepath)
+        local_filepath = sys.path[0]
+
+        imports = []
+        for name, mod in finder.modules.items():
+            filename = mod.__file__
+            if filename is None:
+                continue
+            if "__" in name:
+                continue
+            source = ImportSource.EXTERNAL
+            if filename.startswith(local_filepath):
+                source = ImportSource.LOCAL
+            # TODO: generalize this to other standard library paths
+            if "Python.framework" in filename:
+                source = ImportSource.STANDARD_LIBRARY
+            imports.append(Import(name, filename, source))
+            # TODO: use mod.globalnames.keys() to figure out which
+            # bits of a file to import if we don't need to import the entire file
+        return imports
+
+    def prompt(self, source: str, test_source: str, test_output: str):
 
         # previous output format prompt: This updated code block should be formatted as a git file diff which can be
         # supplied to the "patch" command to achieve the desired outcome.
         return f"""
 Your goal is to update existing code or write new code to make this test suite pass. You are being prompted because the test suite failed.
 Each block is clearly marked with start and end blocks like START_<X> and END_<X> blocks. Return only an updated block of code to be evaluated.
-The block of code to be edited is between the blocks START_SOURCE and END_SOURCE.
+The block of code to be edited is between the blocks START_SOURCE and END_SOURCE. Ensure that if multiple source files are present, the correct source file is being edited.
+Identify the source file to be edited by the file name in your response with the following format: FILENAME: <file_name>.
 
 START_SOURCE
 ```
-{self.source}
+{source}
 ```
 END_SOURCE
 
 START_TEST_SOURCE
 ```
-{self.test_source}
+{test_source}
 ```
 END_TEST_SOURCE
 
@@ -182,67 +126,7 @@ START_TEST_OUTPUT
 END_TEST_OUTPUT
         """
 
-    def replace(self, response: str):
-        if response.startswith("START_SOURCE"):
-            response = response.split("START_SOURCE")[1]
-        if response.endswith("END_SOURCE"):
-            response = response.split("END_SOURCE")[0]
-        if response.startswith("```python"):
-            response = response.split("```python")[1]
-        if response.startswith("```"):
-            response = response.split("```")[1]
-        if response.endswith("```"):
-            response = response.split("```")[0]
-        with open(self.source_files[0], "w") as file:
-
-            file.write(response)
-
-    def patch(self, response: str) -> int:
-        # unused in favor of replacing the entire file.
-        if response.startswith("START_SOURCE"):
-            response = response.split("START_SOURCE")[1]
-        if response.endswith("END_SOURCE"):
-            response = response.split("END_SOURCE")[0]
-
-        tmp_file_path = None
-        with tempfile.NamedTemporaryFile(delete=False) as tmp_file:
-            tmp_file.write(response.encode())
-            tmp_file_path = tmp_file.name
-
-        return subprocess.run(
-            [
-                "patch",
-                self.source_files[0],
-                tmp_file_path,
-            ],
-            text=True,
-            check=False,
-        ).returncode
-
-    def run(self):
-        return subprocess.run(
-            self.eval_command,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True,
-            check=False,
-        )
-
 
 if __name__ == "__main__":
-    working_directory = sys.argv[1]  # Accept working directory as an argument
-    os.chdir(working_directory)  # Change to the specified working directory
-
-    agent = Agent()
-    solved = False
-    while not solved:
-        print("EXEC")
-        result = agent.loop()
-        if result == Result.PASSED:
-            print("SOLVED")
-            subprocess.run(
-                ["git", "diff"], cwd=working_directory, check=False
-            )  # Execute from the specified directory
-            solved = True
-        if result == Result.EXIT:
-            raise RuntimeError("Failed to solve in max iterations")
+    agent = Agent(sys.argv[1], sys.argv[2])
+    agent.run()
