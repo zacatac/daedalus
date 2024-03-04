@@ -27,6 +27,8 @@ class Agent:
         self.model = Model()
 
     def run(self):
+        if self.debug:
+            print(f"Processing test file: {self.test_filepath}")
         imports = self.get_imports(self.test_filepath)
         source_files = list(
             map(
@@ -34,6 +36,8 @@ class Agent:
                 filter(lambda imp: imp.source == ImportSource.LOCAL, imports),
             )
         )
+        if self.debug:
+            print(f"Local imports: {source_files}")
         source = self.collect_files(source_files)
         test_source = self.collect_files([self.test_filepath])
         prompt = self.prompt(source, test_source, self.test_output)
@@ -76,7 +80,16 @@ class Agent:
 
     def get_imports(self, path: str) -> List[Import]:
         finder = ModuleFinder()
-        finder.run_script(self.test_filepath)
+        try:
+            finder.run_script(self.test_filepath)
+        except AttributeError as e:
+            # there is a known issue with modulefinder that
+            # causes it to fail when spec.loader is None, which
+            # is the case for namespaced packages.
+            # This blocks usage of the tool in common scenarios
+            # like if a user is using Flask.
+            print(e)
+            raise RuntimeError("Unable to process the test file") from e
         local_filepath = sys.path[0]
 
         imports = []
