@@ -21,9 +21,9 @@ expected diff for the sum usecase is:
 
 # VSCode Integration
 
-[WIP] The VSCode integration works alongside this fork of [vscode-python-test-adapter](https://github.com/zacatac/vscode-python-test-adapter). This fork of the VSCode test explorer will make a call to the locally running Daedalus server whenever a test fails to attempt to automatically resolve the test failure.
+The VSCode integration works alongside this fork of [vscode-python-test-adapter](https://github.com/zacatac/vscode-python-test-adapter). This fork of the VSCode test explorer will make a call to the locally running Daedalus server whenever a test fails to attempt to automatically resolve the test failure.
 
-[TODO: more context on running the VSCode extension fork].
+You can find the extension in the VS Code marketplace under "Daedalus-Enhanced Python Test Explorer for Visual Studio Code"
 
 This extension assumes and the server make a few assumptions:
 
