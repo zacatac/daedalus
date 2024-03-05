@@ -1,6 +1,6 @@
 Daedalus is an agentic tool which attempts to automate the process of writing source code that satisfies the constraints outlined in a test suite. This approach borrows from the practice of test-driven development where a developer writes tests which are expected to fail and also describe the desired behavior of code. The daedalus agent assumes the user has already written the necessary tests to specify functionality.
 
-Demo video: https://www.loom.com/share/1bdf85141ba841f8bfe1056ddf164c97
+Demo video: https://www.loom.com/share/09e15cb8964c428eba6f80d442b9c5b5
 
 # Getting Started
 
@@ -28,7 +28,6 @@ expected diff for the sum usecase is:
 This extension assumes and the server make a few assumptions:
 
 - test files only include absolute imports
-- tests are written in pytest
 - the Daedalus server is running locally and available at port 2666
 
 # Findings
