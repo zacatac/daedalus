@@ -54,7 +54,9 @@ class Agent:
         if len(file_responses) < 2:
             raise RuntimeError("Unable to process the response")
         for file_response in file_responses[1:]:
+            # TODO: more robust parsing. this fails in a number of cases in surprising ways
             filename, file_content = file_response.split("\n", 1)
+            file_content = file_content.strip()
             if self.debug:
                 print(f"Processing FILENAME: {filename}")
                 print(f"File content: {file_content}")
@@ -65,6 +67,9 @@ class Agent:
                 file_content = file_content.split("```")[1]
             if file_content.endswith("```"):
                 file_content = file_content.split("```")[0]
+            if file_content.strip() == "":
+                # not deleting all content from files
+                continue
             with open(filename.strip(), "w") as file:
                 file.write(file_content.strip())
 
